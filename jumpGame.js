@@ -4,6 +4,10 @@ var gl;
 var score = 0;
 var coinScore = 100;
 var mainCharacter = new MainCharacter();
+var coin = new Coin();
+var monster = new Monster();
+var balls = [];
+var refBall = new Ball();
 var refBlock = new Block();
 var gameStatus =true;
 var blockNumber = 12;
@@ -11,10 +15,11 @@ var xAxis = 0;
 var yAxis = 1;
 var zAxis = 2;
 var blocks=[];
+
 var meshProgramInfo;
 let isDragging = false;
 let u_world = m4.yRotation(0.01);
-var coin = new Coin();
+
 var zoomSensitivity=3;
 var motionSpeed = 0.5;
 let rotation = {
@@ -542,7 +547,234 @@ async function main() {
     range = m4.subtractVectors(extents.max, extents.min);
     refBlock.sizeCalculate(range);
 
+
+    // creating monster 
+    objHref = './obj/monster/obj.obj';  
+    response = await fetch(objHref);
+    text = await response.text();
+    obj = parseOBJ(text);
+    baseHref = new URL(objHref, window.location.href);
+    matTexts = await Promise.all(obj.materialLibs.map(async filename => {
+    var matHref = new URL(filename, baseHref).href;
+    response = await fetch(matHref);
+    return await response.text();
+  }));
+   materials = parseMTL(matTexts.join('\n'));
+
+   textures = {
+    defaultWhite: create1PixelTexture(gl, [255, 255, 255, 255]),
+    defaultNormal: create1PixelTexture(gl, [127, 127, 255, 0]),
+  };
+
+  // load texture for materials
+  for (const material of Object.values(materials)) {
+    Object.entries(material)
+      .filter(([key]) => key.endsWith('Map'))
+      .forEach(([key, filename]) => {
+        let texture = textures[filename];
+        if (!texture) {
+          const textureHref = new URL(filename, baseHref).href;
+          texture = createTexture(gl, textureHref);
+          textures[filename] = texture;
+        }
+        material[key] = texture;
+      });
+  }
+
+  // hack the materials so we can see the specular map
+  Object.values(materials).forEach(m => {
+    m.shininess = 25;
+    m.specular = [3, 2, 1];
+  });
+
+   defaultMaterial = {
+    diffuse: [1, 1, 1],
+    diffuseMap: textures.defaultWhite,
+    normalMap: textures.defaultNormal,
+    ambient: [0, 0, 0],
+    specular: [1, 1, 1],
+    specularMap: textures.defaultWhite,
+    shininess: 400,
+    opacity: 1,
+  };
+
+    parts = obj.geometries.map(({material, data}) => {
+        // Because data is just named arrays like this
+        //
+        // {
+        //   position: [...],
+        //   texcoord: [...],
+        //   normal: [...],
+        // }
+        //
+        // and because those names match the attributes in our vertex
+        // shader we can pass it directly into `createBufferInfoFromArrays`
+        // from the article "less code more fun".
+
+        for(var i=0;i<data.position.length;i++){
+            data.position[i]*=1;
+        }
+        if (data.color) {
+        if (data.position.length === data.color.length) {
+            // it's 3. The our helper library assumes 4 so we need
+            // to tell it there are only 3.
+            data.color = { numComponents: 3, data: data.color };
+        }
+        } else {
+        // there are no vertex colors so just use constant white
+        data.color = { value: [1, 1, 1, 1] };
+        }
+
+        // generate tangents if we have the data to do so.
+        if (data.texcoord && data.normal) {
+        data.tangent = generateTangents(data.position, data.texcoord);
+        } else {
+        // There are no tangents
+        data.tangent = { value: [1, 0, 0] };
+        }
+
+        if (!data.texcoord) {
+        data.texcoord = { value: [0, 0] };
+        }
+
+        if (!data.normal) {
+        // we probably want to generate normals if there are none
+        data.normal = { value: [0, 0, 1] };
+        }
+
+        // create a buffer for each array by calling
+        // gl.createBuffer, gl.bindBuffer, gl.bufferData
+        const bufferInfo = webglUtils.createBufferInfoFromArrays(gl, data);
+        return {
+        material: {
+            ...defaultMaterial,
+            ...materials[material],
+        },
+        bufferInfo,
+        };
+    });
+    extents= getGeometriesExtents(obj.geometries);
     
+    range = m4.subtractVectors(extents.max, extents.min);
+    monster.sizeCalculate(range);
+    monster.parts = parts;
+    monster.setRandomBlock(blocks);
+    monster.blockNumber = blockNumber;
+    
+
+     // Creating reference ball object
+    
+     objHref = './obj/ball/POKE BALL.obj';  
+     response = await fetch(objHref);
+     text = await response.text();
+     obj = parseOBJ(text);
+     baseHref = new URL(objHref, window.location.href);
+     matTexts = await Promise.all(obj.materialLibs.map(async filename => {
+     var matHref = new URL(filename, baseHref).href;
+     response = await fetch(matHref);
+     return await response.text();
+   }));
+    materials = parseMTL(matTexts.join('\n'));
+ 
+    textures = {
+     defaultWhite: create1PixelTexture(gl, [255, 255, 255, 255]),
+     defaultNormal: create1PixelTexture(gl, [127, 127, 255, 0]),
+   };
+ 
+   // load texture for materials
+   for (const material of Object.values(materials)) {
+     Object.entries(material)
+       .filter(([key]) => key.endsWith('Map'))
+       .forEach(([key, filename]) => {
+         let texture = textures[filename];
+         if (!texture) {
+           const textureHref = new URL(filename, baseHref).href;
+           texture = createTexture(gl, textureHref);
+           textures[filename] = texture;
+         }
+         material[key] = texture;
+       });
+   }
+ 
+   // hack the materials so we can see the specular map
+   Object.values(materials).forEach(m => {
+     m.shininess = 25;
+     m.specular = [3, 2, 1];
+   });
+ 
+    defaultMaterial = {
+     diffuse: [1, 1, 1],
+     diffuseMap: textures.defaultWhite,
+     normalMap: textures.defaultNormal,
+     ambient: [0, 0, 0],
+     specular: [1, 1, 1],
+     specularMap: textures.defaultWhite,
+     shininess: 400,
+     opacity: 1,
+   };
+ 
+     parts = obj.geometries.map(({material, data}) => {
+         // Because data is just named arrays like this
+         //
+         // {
+         //   position: [...],
+         //   texcoord: [...],
+         //   normal: [...],
+         // }
+         //
+         // and because those names match the attributes in our vertex
+         // shader we can pass it directly into `createBufferInfoFromArrays`
+         // from the article "less code more fun".
+         for(var i=0;i<data.position.length;i++){
+             data.position[i]*=0.8;
+         }
+         if (data.color) {
+         if (data.position.length === data.color.length) {
+             // it's 3. The our helper library assumes 4 so we need
+             // to tell it there are only 3.
+             data.color = { numComponents: 3, data: data.color };
+         }
+         } else {
+         // there are no vertex colors so just use constant white
+         data.color = { value: [1, 1, 1, 1] };
+         }
+ 
+         // generate tangents if we have the data to do so.
+         if (data.texcoord && data.normal) {
+         data.tangent = generateTangents(data.position, data.texcoord);
+         } else {
+         // There are no tangents
+         data.tangent = { value: [1, 0, 0] };
+         }
+ 
+         if (!data.texcoord) {
+         data.texcoord = { value: [0, 0] };
+         }
+ 
+         if (!data.normal) {
+         // we probably want to generate normals if there are none
+         data.normal = { value: [0, 0, 1] };
+         }
+ 
+         // create a buffer for each array by calling
+         // gl.createBuffer, gl.bindBuffer, gl.bufferData
+         const bufferInfo = webglUtils.createBufferInfoFromArrays(gl, data);
+         return {
+         material: {
+             ...defaultMaterial,
+             ...materials[material],
+         },
+         bufferInfo,
+         };
+     });
+     extents= getGeometriesExtents(obj.geometries);
+     
+     
+     refBall.parts = parts;
+     extents= getGeometriesExtents(obj.geometries);
+     range = m4.subtractVectors(extents.max, extents.min);
+     refBall.sizeCalculate(range);
+ 
     cameraPosition = m4.addVectors(cameraTarget, [
         0,
         0,
@@ -550,6 +782,7 @@ async function main() {
       ]);        
       document.addEventListener('mousedown', function(e) {
         if (e.button !== 2) { // sağ tuş kontrolü
+            ballCreate();
             return;
         }
         isDragging = true;
@@ -575,6 +808,7 @@ async function main() {
     
     document.addEventListener('mouseup', function(e) {
         if (e.button !== 2) {
+            ballCreate();
             return;
         }
         isDragging = false;
@@ -603,12 +837,14 @@ async function main() {
       document.addEventListener('keypress', function(event) {
           if(event.key === 'a' ||event.key === 'A' ) {
               mainCharacter.move(-parseFloat(motionSpeed.toFixed(2)),xAxis)
-             
+              mainCharacter.ballDirection = -1;
               
           }
           if(event.key === 'd' ||event.key === 'D' ) {
               mainCharacter.move(parseFloat(motionSpeed.toFixed(2)),xAxis)
+              mainCharacter.ballDirection = 1;
           }
+
           if(event.key === 'w' ||event.key === 'W' ) {
               mainCharacter.move(parseFloat(motionSpeed.toFixed(2)),zAxis)
           }
@@ -622,7 +858,19 @@ async function main() {
          
       });
 
-
+      document.querySelector('#soundButton').addEventListener('click', function() {
+        if (muted) {
+          muted = false;
+          this.textContent = "Sesi Kapat";
+        } else {
+          muted = true;
+          this.textContent = "Sesi Aç";
+        }
+      });
+      
+      
+      
+      
     createRandomBlocks(blockNumber);
     requestAnimationFrame(render);
   }
@@ -666,13 +914,31 @@ async function main() {
             if(blk === coin.connectedBlock){
                 coin.setRandomBlock(blocks);
             }
+            if(blk === monster.connectedBlock){
+              monster.setRandomBlock(blocks);
+          }
         }
     }
+}
+function ballCreate(){
+  if(balls.length > 4){
+    return;
+  }
+  var ball = new Ball();
+  ball.parts = refBall.parts;
+  ball.size = refBall.size;
+  ball.rightLeftdirection = mainCharacter.ballDirection;
+  ball.move(mainCharacter.position.x+mainCharacter.ballDirection,xAxis);
+  ball.move(mainCharacter.position.y+1,yAxis);
+  balls.push(ball);
 }
   function render(time) {
     if(coin.connectedBlock == null){
         coin.setRandomBlock(blocks);
     }
+    if(monster.connectedBlock == null){
+      monster.setRandomBlock(blocks);
+  }
     if(gameStatus === true){
     time *= 0.001;  // convert to seconds
 
@@ -732,7 +998,21 @@ async function main() {
     // u_world = m4.yRotation(time);
     
     //blocks[0].autoMove();
-    
+    var len = balls.length;
+    for(var i =0;i<len;i++){
+      
+      if(balls[i].status===false){
+        balls.splice(i,1);
+        i-=1;
+        len-=1;
+        continue;
+      }
+      balls[i].autoMove();
+    }
+
+    for(var i=0;i<balls.length;i++){
+      drawObject(balls[i],rotation.x,rotation.y);
+    }
     drawObject(mainCharacter,rotation.x,rotation.y);
     
     for(var i=0;i<blocks.length;i++){
@@ -757,16 +1037,33 @@ async function main() {
     coin.posUpdate();
     drawObject(coin,rotation.x,rotation.y);
     
+    monster.posUpdate();
+    drawObject(monster,rotation.x,rotation.y);
+
     if(mainCharacter.collidesWithCoin(coin) === true){
         score += coinScore;
         playSoundEffect(coinSound);
         coin.setRandomBlock(blocks);
     }
 
-
+    if(mainCharacter.collidesWithCoin(monster) === true){
+      
+      playSoundEffect(gameOver);
+      gameStatus=false;
   }
+  for(var i=0;i<balls.length;i++){
+    if(balls[i].collideControl(monster) === true){
+      monster.setRandomBlock(blocks);
+      score += coinScore;
+      playSoundEffect(coinSound); //TODO Change sound
+    }
+  }
+  
+
+  
     
 
     requestAnimationFrame(render);
   }
 
+}

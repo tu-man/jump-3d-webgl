@@ -1,5 +1,5 @@
 class Block extends Character{
-    necessaryDistance = 1.5;
+    necessaryDistance = 1.2;
     status = true;
     slideSpeed = 0.02;
     slideDirection = 1;

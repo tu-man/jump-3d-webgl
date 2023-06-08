@@ -18,6 +18,7 @@ class Coin extends Character{
     }
     setRandomBlock(blocks){
         var randomBox  = Math.floor(Math.random() * this.blockNumber);
+        if(blocks.length > randomBox)
         this.connectedBlock= blocks[randomBox];
     }
 }

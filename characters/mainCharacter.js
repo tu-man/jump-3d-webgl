@@ -1,5 +1,6 @@
 class MainCharacter extends Character{
     constUpDue = 30;
+    ballDirection = 1; //1 right -1 left
     upDue = this.constUpDue;
     tolerans = 0.1;
     constructor(){
@@ -56,6 +57,16 @@ class MainCharacter extends Character{
             this.position.z + this.size.depth > coin.objOffset[2]
         );
    }
+   collidesWithMonster(monster){
+    return (
+        this.position.x < coin.objOffset[0] + coin.size.width &&
+        this.position.x + this.size.width > coin.objOffset[0] &&
+        this.position.y < coin.objOffset[1] + coin.size.height &&
+        this.position.y + this.size.height > coin.objOffset[1] + 0.5&&
+        this.position.z < coin.objOffset[2] + coin.size.depth &&
+        this.position.z + this.size.depth > coin.objOffset[2]
+    );
+}
 
 
 }
