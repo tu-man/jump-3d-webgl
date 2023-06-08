@@ -1,11 +1,33 @@
 <!DOCTYPE html>
-<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-<title>Jumg Game</title>
-<link type="text/css" href="./dependencies/design.css" rel="stylesheet">
-</head>
-<body>
-<canvas id="canvas" width="900" height="900"></canvas>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1.0, user-scalable=yes"
+		/>
+		<title>Jump Game</title>
+		<link type="text/css" href="./dependencies/design.css" rel="stylesheet" />
+		<link type="text/css" href="./dependencies/style.css" rel="stylesheet" />
+	</head>
+	<body>
+		<div class="canvas-wrapper">
+			<div class="game-overlay">
+				<div class="game-overlay-content">
+					<p>Jump 3D</p>
+					<p class="game-overlay-score" data-score="0">Score:&nbsp;</p>
+				</div>
+			</div>
+            <div class="game-over-window">
+				<div class="game-over-window-content">
+					<h2 class="game-over-title">GAME OVER</h2>
+					<p class="game-over-score" data-score="0">Score:&nbsp;</p>
+					<button class="game-over-button">RESTART</button>
+				</div>
+			</div>
+
+			<canvas id="canvas" width="900" height="900"></canvas>
+		</div>
 
 <script src="./dependencies/parser.js"></script>
 <script src="./dependencies/m4.js"></script>

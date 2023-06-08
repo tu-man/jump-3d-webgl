@@ -10,7 +10,7 @@ var balls = [];
 var refBall = new Ball();
 var refBlock = new Block();
 var gameStatus =true;
-var blockNumber = 12;
+var blockNumber = 16;
 var xAxis = 0;
 var yAxis = 1;
 var zAxis = 2;
@@ -30,7 +30,11 @@ var bufferInfo;
 
 const rotationFactor = 0.03;
 
-
+// HTML elements
+const titleScore = document.querySelector('p.game-overlay-score')
+const gameOverScore = document.querySelector('p.game-over-score')
+const gameOverScreen = document.querySelector('.game-over-window')
+const restartGameButton = document.querySelector('.game-over-button')
 function getRandomArbitrary(min, max) {
   return Math.random() * (max - min) + min;
 }
@@ -869,7 +873,7 @@ async function main() {
       });
       
       
-      
+      restartGameButton.addEventListener('click', restartGame)
       
     createRandomBlocks(blockNumber);
     requestAnimationFrame(render);
@@ -1041,7 +1045,7 @@ function ballCreate(){
     drawObject(monster,rotation.x,rotation.y);
 
     if(mainCharacter.collidesWithCoin(coin) === true){
-        score += coinScore;
+       incScore();  
         playSoundEffect(coinSound);
         coin.setRandomBlock(blocks);
     }
@@ -1054,16 +1058,43 @@ function ballCreate(){
   for(var i=0;i<balls.length;i++){
     if(balls[i].collideControl(monster) === true){
       monster.setRandomBlock(blocks);
-      score += coinScore;
+      incScore();
       playSoundEffect(coinSound); //TODO Change sound
     }
   }
+  
   
 
   
     
 
-    requestAnimationFrame(render);
+    
   }
+  else {
+		showGameOverScreen()
+	}
+  requestAnimationFrame(render);
 
+}
+function incScore() {
+	score += coinScore
+	updateScoreFields()
+}
+function updateScoreFields() {
+	titleScore.dataset.score = score
+	gameOverScore.dataset.score = score
+}
+
+function showGameOverScreen() {
+	gameOverScreen.style.display = 'block'
+}
+function restartGame() {
+	mainCharacter.resetPos()
+	rotation = { x: 0, y: 0 }
+	score = 0
+	updateScoreFields()
+
+	gameOverScreen.style.display = 'none'
+	gameStatus = true
+  
 }
